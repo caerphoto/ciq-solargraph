@@ -1,3 +1,4 @@
 <resources>
-    <bitmap id="Dial" filename="dial.jpg" />
+    <bitmap id="DialBright" filename="dial-bright.jpg" />
+    <bitmap id="DialDim" filename="dial-dim.jpg" />
 </resources>
