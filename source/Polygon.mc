@@ -85,7 +85,7 @@ class Polygon {
         return self;
     }
 
-    public function translate(dx, dy) as Polygon {
+    public function translate(dx as Float, dy as Float) as Polygon {
         var poly = self._points;
         var count = poly.size();
         for (var i = 0; i < count; i += 1) {
@@ -97,7 +97,7 @@ class Polygon {
         return self;
     }
 
-    public function scale(fx, fy) as Polygon {
+    public function scale(fx as Float, fy as Float) as Polygon {
         var poly = self._points;
         var count = poly.size();
         for (var i = 0; i < count; i += 1) {
@@ -105,6 +105,18 @@ class Polygon {
                 poly[i][0] * fx,
                 poly[i][1] * fy
             ];
+        }
+        self.measure();
+        return self;
+    }
+
+    public function extend(delta as Float, threshold as Float) as Polygon {
+        var poly = self._points;
+        var count = poly.size();
+        for (var i = 0; i < count; i += 1) {
+            if (poly[i][1] >= threshold) {
+                poly[i][1] += delta;
+            }
         }
         self.measure();
         return self;

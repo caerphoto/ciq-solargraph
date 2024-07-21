@@ -4,7 +4,7 @@ import Toybox.WatchUi;
 import Toybox.Sensor;
 
 class GeoHunterApp extends Application.AppBase {
-    (:initialized) hidden var appView as ElegantView;
+    (:initialized) hidden var appView as GeoHunterView;
 
     function initialize() {
         AppBase.initialize();
