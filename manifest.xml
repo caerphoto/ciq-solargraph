@@ -6,7 +6,7 @@
         to update the application attributes.
     -->
     <!-- this is the beta id -->
-    <iq:application id="5e3f36e1-4490-412b-83b5-8e5409d33810" type="watchface" name="@Strings.AppName" entry="ElegantApp" launcherIcon="@Drawables.LauncherIcon" minApiLevel="5.0.0">
+    <iq:application id="5e3f36e1-4490-412b-83b5-8e5409d33810" type="watchface" name="@Strings.AppName" entry="GeoHunterApp" launcherIcon="@Drawables.LauncherIcon" minApiLevel="5.0.0">
         <!-- this is the published id -->
         <!-- <iq:application id="3241c7b7-ce6f-4b79-8f38-897a8dfe7e7f" type="watchface" name="@Strings.AppName" entry="SimplexApp" launcherIcon="@Drawables.LauncherIcon" minApiLevel="3.0.0"> -->
         <!--

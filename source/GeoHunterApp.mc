@@ -3,7 +3,7 @@ import Toybox.Lang;
 import Toybox.WatchUi;
 import Toybox.Sensor;
 
-class ElegantApp extends Application.AppBase {
+class GeoHunterApp extends Application.AppBase {
     (:initialized) hidden var appView as ElegantView;
 
     function initialize() {
@@ -11,7 +11,7 @@ class ElegantApp extends Application.AppBase {
     }
 
     function getInitialView() as [Views] or [Views, InputDelegates] {
-        appView = new $.ElegantView();
+        appView = new $.GeoHunterView();
         // var delegate = new $.ElegantDelegate(appView);
 
         // return [appView, delegate];

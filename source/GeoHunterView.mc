@@ -10,7 +10,7 @@ import Toybox.ActivityMonitor;
 const PI2 = $.Toybox.Math.PI * 2;
 const PIH = PI2 / 4;
 
-class ElegantView extends WatchUi.WatchFace {
+class GeoHunterView extends WatchUi.WatchFace {
     // private var drawSecondsHand as Boolean;
     private var _backgroundColor as Graphics.ColorType;
     private var _handColorBright as Graphics.ColorType;
