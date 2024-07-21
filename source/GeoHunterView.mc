@@ -42,6 +42,10 @@ class GeoHunterView extends WatchUi.WatchFace {
     (:initialized) private var _centreOffset as Lang.Float;
     (:initialized) private var _pt as Lang.Float;
 
+    private function pt(val as Lang.Numeric) as Float {
+        return (val as Float) * _pt;
+    }
+
     public function initialize() {
         WatchFace.initialize();
         _bgColor = 0x000000;
@@ -55,7 +59,7 @@ class GeoHunterView extends WatchUi.WatchFace {
         _handColorDim = 0xCCCCCC;
         _handColor = _handColorBright;
 
-        _pinionColor = 0x777777;
+        _pinionColor = 0x999999;
         _lowPowerMode = false;
 
         var points = [
@@ -79,8 +83,8 @@ class GeoHunterView extends WatchUi.WatchFace {
         _minuteHandParts[1].extend(55f, 80f);
         _minuteHandParts[2].extend(55f, 80f);
 
-        _subdialHand = new Polygon(points[0]);
-        _subdialHand.scale(0.5f, 0.32f).translate(-(_subdialHand.width() / 2f), -_subdialHand.height() - 4f);
+        points = getSubdialHandPoints();
+        _subdialHand = new Polygon(points);
 
         points = getSecondsHandPoints();
         _secondsHand = new Polygon(points);
@@ -137,6 +141,20 @@ class GeoHunterView extends WatchUi.WatchFace {
         ] as Array<Point>;
     }
 
+    private function getSubdialHandPoints() as Array<Point> {
+        return [
+            [-1, 0],
+            [-1, 20],
+            [-2.5, 22],
+            [-2.5, 55],
+            [ 0, 60],
+            [ 2.5, 55],
+            [ 2.5, 22],
+            [ 1, 20],
+            [ 1, 0]
+        ] as Array<Point>;
+    }
+
     private function getIndexPoints() as Array<Point> {
         return [
             [-4, 0],
@@ -148,6 +166,7 @@ class GeoHunterView extends WatchUi.WatchFace {
 
     public function onLayout(dc as Dc) as Void {
         createOffscreenBuffers(dc);
+        // TODO: scale polys to match screen size (_screenSize / 390)
     }
 
     public function onEnterSleep() as Void {
@@ -178,13 +197,17 @@ class GeoHunterView extends WatchUi.WatchFace {
         // _dial.draw(offscreenDc);
         drawTicks(offscreenDc);
         drawIndices(offscreenDc);
-        // drawBatteryHand(offscreenDc);
+        drawDate(offscreenDc);
+        drawSteps(offscreenDc);
+        drawBatteryDial(offscreenDc);
+        drawBatteryHand(offscreenDc);
         drawHands(offscreenDc);
-        if (!_lowPowerMode) {
-            drawSecondsHand(offscreenDc);
-        }
 
         screenDc.drawBitmap(0, 0, _offscreenBuffer);
+
+        if (!_lowPowerMode) {
+            drawSecondsHand(screenDc);
+        }
     }
 
     private function createOffscreenBuffers(dc as Dc) as Void {
@@ -275,8 +298,8 @@ class GeoHunterView extends WatchUi.WatchFace {
             var x = offset * Math.cos(angle) + _centreOffset;
             var y = offset * Math.sin(angle) + _centreOffset;
 
-            var poly1 = new Polygon(cardinalPolyPoints).translate(-_indexWidth + 6, 0f);
-            var poly2 = new Polygon(cardinalPolyPoints).translate(_indexWidth - 6, 0f);
+            var poly1 = new Polygon(cardinalPolyPoints).translate(-_indexWidth + 5, 0f);
+            var poly2 = new Polygon(cardinalPolyPoints).translate(_indexWidth - 5, 0f);
             poly1.rotate(angle - PIH).translate(x, y);
             poly2.rotate(angle - PIH).translate(x, y);
 
@@ -293,9 +316,9 @@ class GeoHunterView extends WatchUi.WatchFace {
 
     private function drawHands(dc as Dc) as Void {
         var clockTime = System.getClockTime();
-        var angleHour =   PI2 * ((clockTime.min/60f + clockTime.hour) / 12f);
-        var angleMinute = PI2 *  (clockTime.min/60f                 )       ;
-        var pinionSize = 12f;
+        var angleHour =   PI2 * ((clockTime.min/60f + clockTime.hour) / 12f) - Math.PI;
+        var angleMinute = PI2 *  (clockTime.min/60f                 )        - Math.PI;
+        var pinionSize = 12f*_pt;
 
         // Hours hand
         var polys = [
@@ -364,13 +387,58 @@ class GeoHunterView extends WatchUi.WatchFace {
         dc.fillCircle(x, y, 2);
     }
 
-    private function drawBatteryHand(dc as Dc) as Void {
-        var x = 140f;
-        var y = 195f;
+    private function drawBatteryDial(dc as Dc) as Void {
+        var radius = pt(74);
+        var x = pt(138);
+        var y = pt(185);
 
-        var battery = 100f - System.getSystemStats().battery;
-        var angle0 = -63f;
-        var angle100 = 63f;
+        // Note: degrees, not radians
+        var start = 120f;
+        var end = 240f;
+        var arcStart = 128f;
+        var arcEnd = 240f;
+
+        dc.setColor(_bgColor, Graphics.COLOR_TRANSPARENT);
+        dc.setPenWidth(pt(34));
+        dc.drawArc(x, y, radius - pt(9), Graphics.ARC_COUNTER_CLOCKWISE, arcStart, arcEnd);
+
+        dc.setColor(_indexColor, Graphics.COLOR_TRANSPARENT);
+        dc.setPenWidth(pt(18));
+        dc.drawArc(x, y, radius - pt(9), Graphics.ARC_COUNTER_CLOCKWISE, arcStart, arcEnd);
+
+        var lowStart = ((arcEnd - arcStart) / 5f) * 3f + arcStart + 5;
+        dc.setColor(0xCC8800, Graphics.COLOR_TRANSPARENT);
+        dc.drawArc(x, y, radius - pt(9), Graphics.ARC_COUNTER_CLOCKWISE, lowStart, arcEnd);
+        lowStart = ((arcEnd - arcStart) / 5f) * 4f + arcStart + 4;
+        dc.setColor(0xCC0000, Graphics.COLOR_TRANSPARENT);
+        dc.drawArc(x, y, radius - pt(9), Graphics.ARC_COUNTER_CLOCKWISE, lowStart, arcEnd);
+
+        dc.setColor(_bgColor, Graphics.COLOR_TRANSPARENT);
+        dc.fillCircle(pt(135), pt(195), radius - pt(12));
+
+        x = pt(135);
+        y = pt(195);
+        var sectors = 5;
+        var sectorSize = (end - start) / (sectors as Float);
+        dc.setPenWidth(3);
+        dc.setColor(_bgColor, Graphics.COLOR_TRANSPARENT);
+        for (var index = 0; index < sectors; index += 1) {
+            radius += 1;
+            var angle = start + index * sectorSize;
+            angle = (angle / 360f) * PI2;
+            var x2 = radius * Math.cos(angle);
+            var y2 = radius * Math.sin(angle);
+            dc.drawLine(x, y, x + x2, y + y2);
+        }
+    }
+
+    private function drawBatteryHand(dc as Dc) as Void {
+        var x = 135f*_pt;
+        var y = 195f*_pt;
+
+        var battery = System.getSystemStats().battery;
+        var angle0 = 120f;
+        var angle100 = 240f;
         var angle = (angle100 - angle0) * (battery/100f) + angle0;
         var angleRad = (angle/360) * PI2 - PIH;
 
@@ -378,6 +446,9 @@ class GeoHunterView extends WatchUi.WatchFace {
             .rotate(angleRad)
             .translate(x, y);
 
+        dc.setColor(_bgColor, Graphics.COLOR_TRANSPARENT);
+        dc.setPenWidth(4);
+        hand.draw(dc);
         dc.setColor(_pinionColor, Graphics.COLOR_TRANSPARENT);
         dc.setPenWidth(2);
         hand.draw(dc);
@@ -385,6 +456,62 @@ class GeoHunterView extends WatchUi.WatchFace {
         hand.fill(dc);
 
         drawPinion(dc, x, y, 4f);
+    }
+
+    private function drawDate(dc as Dc) as Void {
+        var width = pt(45);
+        var height = pt(32);
+        var x = pt(_screenSize - width - 23);
+        var y = pt(_centreOffset - height/2f);
+
+        var now = Time.now();
+        var date = Time.Gregorian.info(now, Time.FORMAT_MEDIUM);
+        var dateStr = date.day;
+        var justify = Graphics.TEXT_JUSTIFY_CENTER | Graphics.TEXT_JUSTIFY_VCENTER;
+
+        dc.setPenWidth(pt(15));
+        dc.setColor(_bgColor, Graphics.COLOR_TRANSPARENT);
+        dc.drawRectangle(x, y, width, height);
+        dc.fillRectangle(x, y, width, height);
+
+        dc.setPenWidth(pt(7));
+        dc.setColor(_pinionColor, Graphics.COLOR_TRANSPARENT);
+        dc.drawRectangle(x, y, width, height);
+
+        dc.setPenWidth(pt(5));
+        dc.setColor(_indexColor, Graphics.COLOR_TRANSPARENT);
+        dc.drawRectangle(x, y, width, height);
+
+        dc.drawText(
+            x + width/2 + 2, y + height/2,
+            Graphics.FONT_XTINY,
+            dateStr, justify
+        );
+    }
+
+    private function thousandsSep(num) as String {
+        var hundreds = num % 1000;
+        var thousands = Math.floor(num / 1000.0);
+        if (thousands > 0) {
+            return thousands.format("%d") + "," + hundreds.format("%03d");
+        } else {
+            return hundreds.format("%d");
+        }
+    }
+
+    private function drawSteps(dc as Dc) as Void {
+        var font = Graphics.FONT_TINY;
+        var steps = ActivityMonitor.getInfo().steps;
+        var stepsStr = "----";
+        if (steps != null) {
+            stepsStr = thousandsSep(steps);
+        }
+        dc.setColor(_handColor, Graphics.COLOR_TRANSPARENT);
+        dc.drawText(
+            _centreOffset, _centreOffset + _screenSize / 5,
+            font, stepsStr,
+            Graphics.TEXT_JUSTIFY_VCENTER | Graphics.TEXT_JUSTIFY_CENTER
+        );
     }
 
     private function drawSecondsHand(dc as Dc) as Void {
