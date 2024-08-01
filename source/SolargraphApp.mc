@@ -3,15 +3,15 @@ import Toybox.Lang;
 import Toybox.WatchUi;
 import Toybox.Sensor;
 
-class GeoHunterApp extends Application.AppBase {
-    (:initialized) hidden var appView as GeoHunterView;
+class SolargraphApp extends Application.AppBase {
+    (:initialized) hidden var appView as SolargraphView;
 
     function initialize() {
         AppBase.initialize();
     }
 
     function getInitialView() as [Views] or [Views, InputDelegates] {
-        appView = new $.GeoHunterView();
+        appView = new $.SolargraphView();
         // var delegate = new $.ElegantDelegate(appView);
 
         // return [appView, delegate];

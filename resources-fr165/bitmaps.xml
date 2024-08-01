@@ -1,4 +1,8 @@
 <resources>
-    <bitmap id="DialBright" filename="dial-bright.jpg" />
-    <bitmap id="DialDim" filename="dial-dim.jpg" />
+    <bitmap id="DialBright" filename="dial-bright.png" />
+    <bitmap id="DialDim" filename="dial-dim.png" />
+    <bitmap id="HourRingBright" filename="hour-ring-bright.png" />
+    <bitmap id="HourRingDim" filename="hour-ring-dim.png" />
+    <bitmap id="MinuteHand" filename="minute-hand.png" />
+    <bitmap id="HourHand" filename="hour-hand.png" />
 </resources>

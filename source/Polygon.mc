@@ -3,6 +3,11 @@ import Toybox.Graphics;
 
 typedef Point as [Float, Float];
 
+enum ExtendAxis {
+    AXIS_X = 0,
+    AXIS_Y = 1,
+}
+
 class Polygon {
     private var _points as Array<Point>;
     (:initialized) private var _width as Float;
@@ -110,12 +115,12 @@ class Polygon {
         return self;
     }
 
-    public function extend(delta as Float, threshold as Float) as Polygon {
+    public function extend(delta as Float, axis as ExtendAxis, threshold as Float) as Polygon {
         var poly = self._points;
         var count = poly.size();
         for (var i = 0; i < count; i += 1) {
-            if (poly[i][1] >= threshold) {
-                poly[i][1] += delta;
+            if (poly[i][axis] >= threshold) {
+                poly[i][axis] += delta;
             }
         }
         self.measure();
