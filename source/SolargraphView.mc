@@ -41,11 +41,15 @@ const BATTERY_DIAL_RADIUS = 90f;
 
 const CONSTRAINED_COLOR = 0xAA0000;
 
-const COLOR_NIGHT = 0x1A2957;
-const COLOR_PREDAWN = 0x57426A; // or dusk
-const COLOR_SUNRISE = 0xF5661B; // or sunset
-const COLOR_MORNING = 0xADA077; // or evening
-const COLOR_DAY = 0x58B8FF;
+// [0] is high power mode, [1] is low power mode
+const INDEX_DAY     = [0x58B8FF, 0x3D7FB0];
+const INDEX_MORNING = [0xADA077, 0x847A5B]; // or evening
+const INDEX_SUNRISE = [0xF5661B, 0xCA5416]; // or sunset
+const INDEX_PREDAWN = [0x7D6397, 0x524163]; // or dusk
+const INDEX_NIGHT   = [0x1A2957, 0x1A2854];
+
+const OUTLINE_DAY   = [0xCFC299, 0x8A7F6E];
+const OUTLINE_NIGHT = [0x685492, 0x716180];
 
 class SolargraphView extends WatchUi.WatchFace {
     private var _fakeHr as Number;
@@ -315,16 +319,41 @@ class SolargraphView extends WatchUi.WatchFace {
 
         var hourDiff = hour - _lastSunriseTime;
 
+        var color = INDEX_DAY;
+
         if (hourDiff < -1.5) {
-            return COLOR_NIGHT;
+            color = INDEX_NIGHT;
         } else if (hourDiff < -0.5) {
-            return COLOR_PREDAWN;
+            color = INDEX_PREDAWN;
         } else if (hourDiff >= -0.5 && hourDiff < 0.5) {
-            return COLOR_SUNRISE;
+            color = INDEX_SUNRISE;
         } else if (hourDiff >= 0.5 && hourDiff < 1.5) {
-            return COLOR_MORNING;
+            color = INDEX_MORNING;
+        }
+
+        if (_lowPowerMode) {
+            return color[1];
         } else {
-            return COLOR_DAY;
+            return color[0];
+        }
+    }
+
+    private function getIndexOutlineColor(hour as Number) as Number {
+        hour = hour.toFloat();
+        if (hour > 12f) {
+            hour = 12f - (hour - 12f);
+        }
+
+        var hourDiff = hour - _lastSunriseTime;
+        var color = OUTLINE_DAY;
+        if (hourDiff < -0.5) {
+            color = OUTLINE_NIGHT;
+        }
+
+        if (_lowPowerMode) {
+            return color[1];
+        } else {
+            return color[0];
         }
     }
 
@@ -370,6 +399,41 @@ class SolargraphView extends WatchUi.WatchFace {
 
     private function drawIndices(dc as Dc) as Void {
         dc.drawBitmap(0, 0, _dial);
+
+        var ringRadius = HOUR_HAND_LENGTH + 15f;
+        var step = PI2/24f;
+        var angle = PIH; // offset by quarter turn
+        var minorDotRadius = 4f;
+        var cardinalDotRadius = 10f;
+        var dotRadius;
+
+        for (var index = 0; index < 24; index += 1) {
+            if (index == 0 || index == 12) {
+                angle += step;
+                continue;
+            }
+
+            if (index % 3 == 0) {
+                dotRadius = cardinalDotRadius;
+            } else {
+                dotRadius = minorDotRadius;
+            }
+
+            var x =  ringRadius * Math.cos(angle);
+            var y =  ringRadius * Math.sin(angle);
+            var color = getHourColor(index.toFloat());
+            var penColor = getIndexOutlineColor(index);
+            dc.setPenWidth(5f);
+            dc.setColor(penColor, Graphics.COLOR_TRANSPARENT);
+            dc.drawCircle(_centreOffset + x, _centreOffset + y, dotRadius);
+            dc.setPenWidth(2f);
+            dc.setColor(0x000000, Graphics.COLOR_TRANSPARENT);
+            dc.drawCircle(_centreOffset + x, _centreOffset + y, dotRadius);
+            dc.setColor(color, Graphics.COLOR_TRANSPARENT);
+            dc.fillCircle(_centreOffset + x, _centreOffset + y, dotRadius);
+
+            angle += step;
+        }
     }
 
     private function drawHands(dc as Dc) as Void {
