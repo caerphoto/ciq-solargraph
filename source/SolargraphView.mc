@@ -18,7 +18,7 @@ const HOUR_HAND_LENGTH = 104f;
 const MIN_HAND_LENGTH = 178f;
 
 const TICK_RADIUS_INNER = 185f;
-const THICK_INDEX_WIDTH = 5;
+const THICK_INDEX_WIDTH = 10;
 
 const INDEX_BRIGHT = 0xFC9930;
 const INDEX_DIM = 0xB65F00;
@@ -35,15 +35,18 @@ const DUSK_DIM = 0x964920;
 const NIGHT_BRIGHT = 0x746AB9;
 const NIGHT_DIM = 0x4E4694;
 
-const BATTERY_DIAL_FULL_DEG = 180f;
-const BATTERY_DIAL_EMPTY_DEG = 105f;
-const BATTERY_DIAL_RADIUS = 90f;
+const BATTERY_DIAL_FULL_DEG = 305f;
+const BATTERY_DIAL_EMPTY_DEG = 235f;
+const BATTERY_DIAL_RADIUS = 170f;
+
+const HR_DIAL_MAX_DEG = 125f;
+const HR_DIAL_MIN_DEG = 55f;
 
 const CONSTRAINED_COLOR = 0xAA0000;
 
 // [0] is high power mode, [1] is low power mode
 const INDEX_DAY     = [0x58B8FF, 0x3D7FB0];
-const INDEX_MORNING = [0xADA077, 0x847A5B]; // or evening
+const INDEX_MORNING = [0x998A5C, 0x746846]; // or evening
 const INDEX_SUNRISE = [0xF5661B, 0xCA5416]; // or sunset
 const INDEX_PREDAWN = [0x7D6397, 0x524163]; // or dusk
 const INDEX_NIGHT   = [0x1A2957, 0x1A2854];
@@ -194,7 +197,7 @@ class SolargraphView extends WatchUi.WatchFace {
         } else {
             // Only update sunrise time once an hour
             var time = System.getClockTime();
-            if (time.min == 0) {
+            if (true || time.min == 0) {
                 _lastSunriseTime = getSunriseTime();
             }
         }
@@ -235,13 +238,27 @@ class SolargraphView extends WatchUi.WatchFace {
         _pt = _screenSize / 390.0f;
     }
 
-    public function getSunriseTime() as Float {
+    (:release) private function fixLatLong(latLong) as Array<Double> {
+        return latLong;
+    }
+
+    // Assuming debug mode = running in the simulator, we need to fake the lat/long since the
+    // simulator usually just returns [0.0, 0.0] or [180.0, 180.0], and polar explorers are not my
+    // target audience.
+    (:debug) private function fixLatLong(latLong) as Array<Double> {
+        return [0.0d, 10.0d];
+    }
+
+
+    private function getSunriseTime() as Float {
         var posInfo = Position.getInfo();
         if (posInfo.accuracy == Position.QUALITY_NOT_AVAILABLE) {
             // No idea where we are, so just return 06:00
             System.println("No position info available :(");
             return 6.0;
         }
+
+        var latLong = fixLatLong(posInfo.position.toDegrees());
 
         var now = Time.now();
         var dateTime = Time.Gregorian.info(now, Time.FORMAT_SHORT);
@@ -286,13 +303,12 @@ class SolargraphView extends WatchUi.WatchFace {
             0.00148  * Math.sin(y3);
 
         var utcOffset = System.getClockTime().timeZoneOffset.toFloat() / Time.Gregorian.SECONDS_PER_HOUR.toFloat();
-        var latLong = posInfo.position.toDegrees();
-        var latitude = latLong[0];
-        var longitude = latLong[1];
+        var latitude = latLong[0].toFloat();
+        var longitude = latLong[1].toFloat();
 
         // Test values, because the simulator doesn't return correct values
-        latitude = 52.5;
-        longitude = 1.7;
+        // latitude = 52.5;
+        // longitude = 1.7;
 
         var zenith = 90.833; // slightly above horizon
         var zenRad = toRad(zenith);
@@ -377,10 +393,12 @@ class SolargraphView extends WatchUi.WatchFace {
         var step = PI2/60f;
         var angle = 0f;
         for (var tick = 0; tick < 30; tick += 1) {
-            if (tick % 5 == 0) {
+            if (tick % 15 == 0) {
+                dc.setPenWidth(THICK_INDEX_WIDTH * 2f);
+            } else if (tick % 5 == 0) {
                 dc.setPenWidth(THICK_INDEX_WIDTH);
             } else {
-                dc.setPenWidth(1);
+                dc.setPenWidth(3);
             }
             var cosA = Math.cos(angle);
             var sinA = Math.sin(angle);
@@ -545,12 +563,16 @@ class SolargraphView extends WatchUi.WatchFace {
         dc.setPenWidth(2);
         dc.setColor(_bgColor, Graphics.COLOR_TRANSPARENT);
         radius += 5; // to account for arc thickness
-        for (var index = 0; index < sectors; index += 1) {
+        for (var index = 1; index < sectors; index += 1) {
             var angle = arcStart + index * sectorSize;
             angle = (angle / 360f) * PI2;
-            var x2 = radius * Math.cos(angle);
-            var y2 = radius * Math.sin(angle);
-            dc.drawLine(_centreOffset, _centreOffset, x + x2, y + y2);
+            var cosA = Math.cos(angle);
+            var sinA = Math.sin(angle);
+            var x1 = (radius - 10) * cosA;
+            var y1 = (radius - 10) * sinA;
+            var x2 =  radius       * cosA;
+            var y2 =  radius       * sinA;
+            dc.drawLine(x + x1, y + y1, x + x2, y + y2);
         }
     }
 
@@ -705,7 +727,7 @@ class SolargraphView extends WatchUi.WatchFace {
             dc,
             5,
             zoneColors,
-            75f, 0f, true,
+            HR_DIAL_MAX_DEG, HR_DIAL_MIN_DEG, true,
             BATTERY_DIAL_RADIUS
         );
 
@@ -728,7 +750,7 @@ class SolargraphView extends WatchUi.WatchFace {
             dc,
             hrNorm,
             true,
-            0f, 75f, true,
+            HR_DIAL_MIN_DEG, HR_DIAL_MAX_DEG, true, // note reversed MIN/MAX values
             BATTERY_DIAL_RADIUS
         );
     }
