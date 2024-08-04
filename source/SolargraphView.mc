@@ -50,13 +50,22 @@ const INDEX_MORNING = [0x998A5C, 0x746846]; // or evening
 const INDEX_SUNRISE = [0xF5661B, 0xCA5416]; // or sunset
 const INDEX_PREDAWN = [0x7D6397, 0x524163]; // or dusk
 const INDEX_NIGHT   = [0x1A2957, 0x1A2854];
+const INDEX_NOON    = [0xFCE37E, 0xAA9955];
 
 const OUTLINE_DAY   = [0xCFC299, 0x8A7F6E];
 const OUTLINE_NIGHT = [0x685492, 0x716180];
 
 class SolargraphView extends WatchUi.WatchFace {
-    private var _fakeHr as Number;
-    private var _lastSunriseTime as Float?;
+    // options
+    private var _showDate as Boolean;
+    private var _showBattery as Boolean;
+    private var _showHr as Boolean;
+    private var _showSteps as Boolean;
+    private var _showSunLines as Boolean;
+
+    // properties
+    // private var _fakeHr as Number;
+    private var _lastSunriseTime as Float;
 
     private var _bgColor as Graphics.ColorType;
     private var _tickColor as Graphics.ColorType;
@@ -74,7 +83,7 @@ class SolargraphView extends WatchUi.WatchFace {
 
     private var _lowPowerMode as Boolean;
 
-    private var _offscreenBuffer as BufferedBitmap?;
+    (:initialized) private var _offscreenBuffer as BufferedBitmap;
 
     private var _dialBright as BitmapResource;
     private var _dialDim as BitmapResource;
@@ -100,9 +109,24 @@ class SolargraphView extends WatchUi.WatchFace {
         return (rad / PI2) * 360.0;
     }
 
+    public function loadSettings() as Void {
+        _showDate = (Application.Properties.getValue("ShowDate") as Number) == 0 ? false : true;
+        _showBattery = (Application.Properties.getValue("ShowBattery") as Number) == 0 ? false : true;
+        _showHr = (Application.Properties.getValue("ShowHrSubdial") as Number) == 0 ? false : true;
+        _showSteps = (Application.Properties.getValue("ShowSteps") as Number) == 0 ? false : true;
+        _showSunLines = (Application.Properties.getValue("ShowSunLines") as Number) == 0 ? false : true;
+    }
+
     public function initialize() {
         WatchFace.initialize();
-        _fakeHr = 70;
+        _showDate = false;;
+        _showBattery = false;;
+        _showHr = false;;
+        _showSteps = false;;
+        _showSunLines = false;;
+
+        // _fakeHr = 70;
+        _lastSunriseTime = -1f;
 
         _bgColor = 0x000000;
         _tickColor = INDEX_DIM;
@@ -124,23 +148,23 @@ class SolargraphView extends WatchUi.WatchFace {
         _dialDim = WatchUi.loadResource($.Rez.Drawables.DialDim) as WatchUi.BitmapResource;
         _dial = _dialBright;
 
-        var bitmap = WatchUi.loadResource($.Rez.Drawables.MinuteHand);
+        var bitmap = WatchUi.loadResource($.Rez.Drawables.MinuteHand) as WatchUi.BitmapResource;
         var bufOpts = {
             :width => bitmap.getWidth(),
             :height => bitmap.getHeight()
         };
-        _minuteHand = Graphics.createBufferedBitmap(bufOpts).get();
+        _minuteHand = Graphics.createBufferedBitmap(bufOpts).get() as BufferedBitmap;
         var dc = _minuteHand.getDc();
         dc.setColor(Graphics.COLOR_TRANSPARENT, Graphics.COLOR_TRANSPARENT);
         dc.clear();
         dc.drawBitmap(0, 0, bitmap);
 
-        bitmap = WatchUi.loadResource($.Rez.Drawables.HourHand);
+        bitmap = WatchUi.loadResource($.Rez.Drawables.HourHand) as WatchUi.BitmapResource;
         bufOpts = {
             :width => bitmap.getWidth(),
             :height => bitmap.getHeight()
         };
-        _hourHand = Graphics.createBufferedBitmap(bufOpts).get();
+        _hourHand = Graphics.createBufferedBitmap(bufOpts).get() as BufferedBitmap;
         dc = _hourHand.getDc();
         dc.setColor(Graphics.COLOR_TRANSPARENT, Graphics.COLOR_TRANSPARENT);
         dc.clear();
@@ -161,6 +185,10 @@ class SolargraphView extends WatchUi.WatchFace {
     public function onLayout(dc as Dc) as Void {
         createOffscreenBuffers(dc);
         // TODO: scale polys to match screen size (_screenSize / 390)
+    }
+
+    public function onShow() as Void {
+        loadSettings();
     }
 
     public function onEnterSleep() as Void {
@@ -192,7 +220,7 @@ class SolargraphView extends WatchUi.WatchFace {
         offscreenDc.setColor(_bgColor, _bgColor);
         offscreenDc.clear();
 
-        if (_lastSunriseTime == null) {
+        if (_lastSunriseTime < 0.0) {
             _lastSunriseTime = getSunriseTime();
         } else {
             // Only update sunrise time once an hour
@@ -203,11 +231,22 @@ class SolargraphView extends WatchUi.WatchFace {
         }
 
         drawTicks(offscreenDc);
+        if (_showSunLines) {
+            drawSunLines(offscreenDc);
+        }
         drawIndices(offscreenDc);
-        drawBatteryDial(offscreenDc);
-        drawDate(offscreenDc);
-        drawSteps(offscreenDc);
-        drawHrSubdial(offscreenDc);
+        if (_showBattery) {
+            drawBatteryDial(offscreenDc);
+        }
+        if (_showDate) {
+            drawDate(offscreenDc);
+        }
+        if (_showSteps) {
+            drawSteps(offscreenDc);
+        }
+        if (_showHr) {
+            drawHrDial(offscreenDc);
+        }
 
         drawHands(offscreenDc);
 
@@ -238,27 +277,29 @@ class SolargraphView extends WatchUi.WatchFace {
         _pt = _screenSize / 390.0f;
     }
 
-    (:release) private function fixLatLong(latLong) as Array<Double> {
+    (:release) private function fixLatLong(latLong as Array<Double>) as Array<Double> {
         return latLong;
     }
 
     // Assuming debug mode = running in the simulator, we need to fake the lat/long since the
     // simulator usually just returns [0.0, 0.0] or [180.0, 180.0], and polar explorers are not my
     // target audience.
-    (:debug) private function fixLatLong(latLong) as Array<Double> {
+    (:debug) private function fixLatLong(latLong as Array<Double>) as Array<Double> {
         return [0.0d, 10.0d];
     }
 
 
+    // Returns sunrise time as fractional hour, e.g. 6.25 means 06:15
     private function getSunriseTime() as Float {
         var posInfo = Position.getInfo();
-        if (posInfo.accuracy == Position.QUALITY_NOT_AVAILABLE) {
+        if (posInfo.position == null || posInfo.accuracy == Position.QUALITY_NOT_AVAILABLE) {
             // No idea where we are, so just return 06:00
             System.println("No position info available :(");
             return 6.0;
         }
 
-        var latLong = fixLatLong(posInfo.position.toDegrees());
+
+        var latLong = fixLatLong((posInfo.position as Position.Location).toDegrees());
 
         var now = Time.now();
         var dateTime = Time.Gregorian.info(now, Time.FORMAT_SHORT);
@@ -334,7 +375,6 @@ class SolargraphView extends WatchUi.WatchFace {
         }
 
         var hourDiff = hour - _lastSunriseTime;
-
         var color = INDEX_DAY;
 
         if (hourDiff < -1.5) {
@@ -415,6 +455,73 @@ class SolargraphView extends WatchUi.WatchFace {
         }
     }
 
+    private function drawSunLines(dc as Dc) as Void {
+        var sunriseTime = _lastSunriseTime;
+        var radius = HOUR_HAND_LENGTH + 15f;
+        var sunsetTime = 24f - sunriseTime;
+        var srAngle = (sunriseTime / 24f) * PI2 - PIH - Math.PI;
+        var ssAngle = (sunsetTime / 24f) * PI2 - PIH - Math.PI;
+
+        // Hour ring lines
+        var srX = radius * Math.cos(srAngle);
+        var srY = radius * Math.sin(srAngle);
+        var ssX = radius * Math.cos(ssAngle);
+        var ssY = radius * Math.sin(ssAngle);
+        var colorIndex = _lowPowerMode ? 1 : 0;
+        dc.setColor(INDEX_SUNRISE[colorIndex], Graphics.COLOR_TRANSPARENT);
+        dc.setPenWidth(2);
+        dc.drawLine(_centreOffset, _centreOffset, _centreOffset + srX, _centreOffset + srY);
+        dc.drawLine(_centreOffset, _centreOffset, _centreOffset + ssX, _centreOffset + ssY);
+
+        // Tick mark on minute track to indicate minute of sunrise/sunset
+        var sunriseHour = Math.floor(sunriseTime) as Number;
+        var sunsetHour = Math.floor(sunsetTime) as Number;
+        var hourNow = System.getClockTime().hour as Number;
+        if (hourNow != sunriseHour && hourNow != sunsetHour) {
+            return;
+        }
+
+        var fracMinute = sunriseTime - sunriseHour;
+        if (hourNow >= 12) {
+            fracMinute = sunsetTime - sunsetHour;
+        }
+
+        // Round to nearest whole minute
+        fracMinute = Math.floor(fracMinute * 60f) / 60f;
+        var min = Math.round(fracMinute * 60) as Number;
+        srAngle = -(fracMinute * 360f) + 90f;
+        System.println("fracMinute (" + min + "): " + fracMinute + ", srAngle: " + srAngle);
+
+        var oneMinute = (1f / 60f) * 360f;
+        var thirtySeconds = oneMinute / 2f;
+        radius = _screenSize / 2f - 5f;
+        var angles = [
+            srAngle - oneMinute,
+            srAngle,
+            srAngle - thirtySeconds
+        ];
+        var colors = [
+            INDEX_DAY[colorIndex],
+            INDEX_PREDAWN[colorIndex],
+            INDEX_NOON[colorIndex]
+        ];
+        if (hourNow > 12) {
+            colors = [
+                INDEX_PREDAWN[colorIndex],
+                INDEX_DAY[colorIndex],
+                INDEX_NOON[colorIndex]
+            ];
+        }
+
+        dc.setPenWidth(12);
+        for (var index = 0; index < 3; index += 1) {
+            dc.setColor(colors[index], Graphics.COLOR_TRANSPARENT);
+            var a1 = angles[index];
+            var a2 = a1 + oneMinute;
+            dc.drawArc(_centreOffset, _centreOffset, radius, Graphics.ARC_COUNTER_CLOCKWISE, a1, a2);
+        }
+    }
+
     private function drawIndices(dc as Dc) as Void {
         dc.drawBitmap(0, 0, _dial);
 
@@ -452,6 +559,7 @@ class SolargraphView extends WatchUi.WatchFace {
 
             angle += step;
         }
+
     }
 
     private function drawHands(dc as Dc) as Void {
@@ -645,7 +753,7 @@ class SolargraphView extends WatchUi.WatchFace {
         );
     }
 
-    private function thousandsSep(num) as String {
+    private function thousandsSep(num as Number) as String {
         var hundreds = num % 1000;
         var thousands = Math.floor(num / 1000.0);
         if (thousands > 0) {
@@ -663,13 +771,13 @@ class SolargraphView extends WatchUi.WatchFace {
         }
         dc.setColor(_cardinalDay, Graphics.COLOR_TRANSPARENT);
         dc.drawText(
-            _centreOffset, _centreOffset - pt(80),
+            _centreOffset, _centreOffset + pt(55),
             Graphics.FONT_XTINY, stepsStr,
             Graphics.TEXT_JUSTIFY_CENTER
         );
     }
 
-    private function drawBatteryDial(dc as Dc) {
+    private function drawBatteryDial(dc as Dc)  as Void {
         var battery = System.getSystemStats().battery / 100f;
 
         drawSubdial(
@@ -689,7 +797,7 @@ class SolargraphView extends WatchUi.WatchFace {
         );
     }
 
-    private function drawHrSubdial(dc) as Void {
+    private function drawHrDial(dc as Dc) as Void {
         var info = Activity.getActivityInfo();
         if (info == null) {
             // No point going any further
@@ -773,3 +881,23 @@ class SolargraphView extends WatchUi.WatchFace {
     }
 }
 
+class SolargraphDelegate extends WatchUi.WatchFaceDelegate {
+    private var _view as SolargraphView;
+
+    public function initialize(view as SolargraphView) {
+        WatchFaceDelegate.initialize();
+        _view = view;
+    }
+
+    public function onPress(event as ClickEvent) as Boolean {
+        // maybe do something here?
+        return true;
+    }
+
+    public function onPowerBudgetExceeded(powerInfo as WatchFacePowerInfo) as Void {
+        System.println("Average execution time: " + powerInfo.executionTimeAverage);
+        System.println("Allowed execution time: " + powerInfo.executionTimeLimit);
+
+        _view.loadSettings();
+    }
+}

@@ -1,9 +1,7 @@
 <properties>
-    <property id="DrawDate" type="number">1</property>
-    <property id="DrawHrSubdial" type="number">1</property>
-    <property id="DrawBattery" type="number">1</property>
-    <property id="DrawSecondsHand" type="number">1</property>
-    <property id="SecondsHandMode" type="number">0</property>
-    <property id="SecondsHandColor" type="number">1</property>
-    <property id="ComplicationsColor" type="number">1</property>
+    <property id="ShowDate" type="number">1</property>
+    <property id="ShowBattery" type="number">1</property>
+    <property id="ShowHrSubdial" type="number">1</property>
+    <property id="ShowSteps" type="number">1</property>
+    <property id="ShowSunLines" type="number">1</property>
 </properties>
