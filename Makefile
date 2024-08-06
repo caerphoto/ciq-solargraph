@@ -24,4 +24,4 @@ sim :
 .PHONY: run
 run :
 	@open $(SDK_DIR)/ConnectIQ.app
-	$(SDK_DIR)/monkeydo $(PRG_FILE) $(DEVICE) > debug.log 2>&1
+	@$(SDK_DIR)/monkeydo $(PRG_FILE) $(DEVICE) > debug.log 2>&1
